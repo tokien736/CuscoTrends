@@ -2,15 +2,19 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import time
+import random
 import concurrent.futures
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# Encabezados para evitar ser bloqueados por el sitio
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Accept-Language': 'en-US, en;q=0.9,es;q=0.8'
-}
+# Lista de User-Agents para rotación
+user_agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+]
 
 # URL inicial de la primera página de TripAdvisor para tours
 base_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-c42-Cusco_Cusco_Region.html"
@@ -25,14 +29,18 @@ retry_strategy = Retry(
     total=MAX_RETRIES,
     backoff_factor=1,  # Incrementar el tiempo de espera después de cada fallo
     status_forcelist=[429, 500, 502, 503, 504],  # Códigos de error que deben gatillar un reintento
-    allowed_methods=["HEAD", "GET", "OPTIONS"]  # Cambiado de method_whitelist a allowed_methods
+    allowed_methods=["HEAD", "GET", "OPTIONS"]
 )
 adapter = HTTPAdapter(max_retries=retry_strategy)
 session.mount("http://", adapter)
 session.mount("https://", adapter)
 
-# Función para realizar una solicitud con reintentos automáticos
+# Función para realizar una solicitud con reintentos automáticos y rotación de User-Agent
 def make_request_with_retries(url):
+    headers = {
+        'User-Agent': random.choice(user_agents),  # Rotación de User-Agents
+        'Accept-Language': 'en-US, en;q=0.9,es;q=0.8'
+    }
     try:
         response = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()  # Verificar si hubo errores HTTP
@@ -64,14 +72,14 @@ def get_next_page_url(soup):
         return 'https://www.tripadvisor.com.pe' + next_page['href']
     return None
 
-# Función para recorrer hasta 6 páginas y extraer todos los enlaces de tours
-def extract_six_pages(start_url):
+# Función para recorrer un número dado de páginas y extraer todos los enlaces de tours
+def extract_pages(start_url, num_pages, current_page=1):
     all_tour_urls = []
     current_url = start_url
     page_counter = 0
 
-    while current_url and page_counter < 6:
-        print(f"Extrayendo enlaces de la página {page_counter + 1}: {current_url}")
+    while current_url and page_counter < num_pages:
+        print(f"Extrayendo enlaces de la página {current_page + page_counter}: {current_url}")
         response = make_request_with_retries(current_url)
         if not response:
             break  # Detenemos el proceso si no obtenemos respuesta
@@ -82,6 +90,16 @@ def extract_six_pages(start_url):
         
         current_url = get_next_page_url(soup)
         page_counter += 1
+
+        # Pausar 1 minuto si llegamos a la página 50
+        if current_page + page_counter == 50:
+            print("Llegamos a la página 50, pausando por 1 minuto...")
+            time.sleep(60)  # Pausa de 1 minuto
+        else:
+            # Pausa entre solicitudes para evitar detección
+            sleep_time = random.uniform(5, 10)  # Pausa aleatoria entre 5 y 10 segundos
+            print(f"Pausando por {sleep_time:.2f} segundos antes de la siguiente solicitud...")
+            time.sleep(sleep_time)
 
     return all_tour_urls
 
@@ -198,8 +216,20 @@ def main():
     start_time = time.time()
     
     # Extraer enlaces de las primeras 6 páginas
-    all_tour_urls = extract_six_pages(base_url)
-    print(f"Total de enlaces extraídos: {len(all_tour_urls)}")
+    all_tour_urls = extract_pages(base_url, 6)
+    print(f"Total de enlaces extraídos de las primeras 6 páginas: {len(all_tour_urls)}")
+
+    # Extraer enlaces de la página 14 a la 21 (8 páginas adicionales)
+    page_14_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-oa120-c42-Cusco_Cusco_Region.html"
+    more_tour_urls = extract_pages(page_14_url, 8)
+    all_tour_urls.extend(more_tour_urls)
+    print(f"Total de enlaces extraídos desde la página 14 a la 21: {len(more_tour_urls)}")
+    
+    # Extraer enlaces de la página 50 a la 56 (7 páginas adicionales)
+    page_50_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-oa480-c42-Cusco_Cusco_Region.html"
+    extra_tour_urls = extract_pages(page_50_url, 7, current_page=50)
+    all_tour_urls.extend(extra_tour_urls)
+    print(f"Total de enlaces extraídos desde la página 50 a la 56: {len(extra_tour_urls)}")
 
     # Extraer las reseñas de los tours extraídos
     reviews_data = extract_tour_reviews(all_tour_urls)
