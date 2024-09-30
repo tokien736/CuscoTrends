@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import time
 import random
+import json
+import os  # Importar os para verificar si el archivo existe y eliminarlo
 import concurrent.futures
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -11,37 +13,39 @@ from urllib3.util.retry import Retry
 user_agents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
 ]
-
-# URL inicial de la primera página de TripAdvisor para tours
-base_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-c42-Cusco_Cusco_Region.html"
 
 # Establecer tiempo de espera y backoff para los reintentos
 REQUEST_TIMEOUT = 10  # 10 segundos de timeout
 MAX_RETRIES = 5  # Número máximo de reintentos
 
 # Crear una sesión para las solicitudes con reintentos automáticos
-session = requests.Session()
-retry_strategy = Retry(
-    total=MAX_RETRIES,
-    backoff_factor=1,  # Incrementar el tiempo de espera después de cada fallo
-    status_forcelist=[429, 500, 502, 503, 504],  # Códigos de error que deben gatillar un reintento
-    allowed_methods=["HEAD", "GET", "OPTIONS"]
-)
-adapter = HTTPAdapter(max_retries=retry_strategy)
-session.mount("http://", adapter)
-session.mount("https://", adapter)
+def create_session():
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=MAX_RETRIES,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504, 403],  # Incluir 403 en la lista de reintentos
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
-# Función para realizar una solicitud con reintentos automáticos y rotación de User-Agent
-def make_request_with_retries(url):
-    headers = {
-        'User-Agent': random.choice(user_agents),  # Rotación de User-Agents
+# Función para obtener un header aleatorio
+def get_random_headers():
+    return {
+        'User-Agent': random.choice(user_agents),
         'Accept-Language': 'en-US, en;q=0.9,es;q=0.8'
     }
+
+# Función para realizar una solicitud con reintentos automáticos y rotación de User-Agent
+def make_request_with_retries(url, session):
     try:
+        headers = get_random_headers()  # Rotar User-Agent
         response = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()  # Verificar si hubo errores HTTP
         return response
@@ -49,85 +53,29 @@ def make_request_with_retries(url):
         print(f"Error al hacer la solicitud a {url}: {e}")
         return None
 
-# Función para extraer enlaces de tours de una página específica
-def extract_tour_urls(page_url):
-    response = make_request_with_retries(page_url)
-    if not response:
-        return []
-    
-    soup = BeautifulSoup(response.content, 'html.parser')
-    tour_urls = []
-    tour_links = soup.find_all('a', class_='BUupS _R w _Z y M0 B0 Gm wSSLS')
-
-    for tour in tour_links:
-        tour_url = 'https://www.tripadvisor.com.pe' + tour['href']
-        tour_urls.append(tour_url)
-
-    return tour_urls
-
-# Función para encontrar el enlace a la página siguiente
-def get_next_page_url(soup):
-    next_page = soup.find('a', {'data-smoke-attr': 'pagination-next-arrow'})
-    if next_page:
-        return 'https://www.tripadvisor.com.pe' + next_page['href']
-    return None
-
-# Función para recorrer un número dado de páginas y extraer todos los enlaces de tours
-def extract_pages(start_url, num_pages, current_page=1):
-    all_tour_urls = []
-    current_url = start_url
-    page_counter = 0
-
-    while current_url and page_counter < num_pages:
-        print(f"Extrayendo enlaces de la página {current_page + page_counter}: {current_url}")
-        response = make_request_with_retries(current_url)
-        if not response:
-            break  # Detenemos el proceso si no obtenemos respuesta
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        tour_urls = extract_tour_urls(current_url)
-        all_tour_urls.extend(tour_urls)
-        
-        current_url = get_next_page_url(soup)
-        page_counter += 1
-
-        # Pausar 1 minuto si llegamos a la página 50
-        if current_page + page_counter == 50:
-            print("Llegamos a la página 50, pausando por 1 minuto...")
-            time.sleep(60)  # Pausa de 1 minuto
-        else:
-            # Pausa entre solicitudes para evitar detección
-            sleep_time = random.uniform(5, 10)  # Pausa aleatoria entre 5 y 10 segundos
-            print(f"Pausando por {sleep_time:.2f} segundos antes de la siguiente solicitud...")
-            time.sleep(sleep_time)
-
-    return all_tour_urls
-
 # Función para extraer datos de reseñas de un tour específico
-def extract_tour_data(tour_url):
+def extract_tour_data(tour_url, session):
     print(f"Accediendo a la URL: {tour_url}")
-    response = make_request_with_retries(tour_url)
-
+    response = make_request_with_retries(tour_url, session)
     if not response:
         return None
-
+    
     soup = BeautifulSoup(response.content, 'html.parser')
-
     try:
         tour_title = soup.find('h1', class_='biGQs _P fiohW ncFvv EVnyE').text.strip()
     except AttributeError:
         tour_title = 'No disponible'
-
+    
     try:
         opinion_count = soup.find('span', class_='biGQs _P pZUbB KxBGd').find('span').text.strip().replace("\xa0opiniones", "")
     except AttributeError:
         opinion_count = 'No disponible'
-
+    
     try:
         image_count = soup.find('button', class_='rmyCe _G B- z _S c Wc wSSLS jWkoZ sOtnj').text.strip()
     except AttributeError:
         image_count = 'No disponible'
-
+    
     try:
         rating = soup.find('div', class_='biGQs _P fiohW hzzSG uuBRH').text.strip()
     except AttributeError:
@@ -161,22 +109,28 @@ def extract_tour_data(tour_url):
 # Función para extraer datos de reseñas de los enlaces de tours en paralelo
 def extract_tour_reviews(tour_urls):
     reviews_data = []
-    
-    # Usamos el módulo concurrent.futures para paralelizar las solicitudes
+    session = create_session()  # Reiniciar sesión con cada lote
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(extract_tour_data, url) for url in tour_urls]
+        futures = [executor.submit(extract_tour_data, url, session) for url in tour_urls]
         for future in concurrent.futures.as_completed(futures):
             data = future.result()
             if data:
                 reviews_data.append(data)
-    
+
+    session.close()  # Cerrar la sesión después de cada lote
     return reviews_data
 
-# Función para guardar los datos en un archivo CSV
+# Función para guardar los datos en un archivo CSV (sobrescribiendo si existe)
 def save_to_csv(reviews_data, filename='tour_reviews.csv'):
+    # Si el archivo ya existe, se elimina antes de escribir nuevos datos
+    if os.path.exists(filename):
+        os.remove(filename)
+        print(f"El archivo '{filename}' fue eliminado para sobrescribirse.")
+
     df = pd.DataFrame(reviews_data)
     if not df.empty:
-        df.to_csv(filename, index=False)
+        df.to_csv(filename, index=False, mode='w', header=True)  # Sobrescribir el archivo
         print(f"Datos extraídos y guardados en '{filename}'.")
     else:
         print("No se extrajeron datos.")
@@ -200,42 +154,55 @@ def remove_duplicates(file_name='Without_Missing_Dataset.csv'):
 # Función para normalizar la columna 'Rating'
 def normalize_rating_column(file_name='Without_Duplicates_Dataset.csv'):
     df = pd.read_csv(file_name)
-    df['Rating'] = df['Rating'].apply(lambda x: x.split()[0] if pd.notna(x) else x)
+    # Asegurarse de que solo se aplique 'split' a los valores de tipo string
+    df['Rating'] = df['Rating'].apply(lambda x: x.split()[0] if isinstance(x, str) else x)
     df.to_csv("Dataset_after_all.csv", index=False)
     print("Columna 'Rating' normalizada y guardada como 'Dataset_after_all.csv'.")
 
-# Función para normalizar la columna 'Review Count'
+# Función para normalizar la columna 'Opinion Count'
 def normalize_review_count_column(file_name='Dataset_after_all.csv'):
     df = pd.read_csv(file_name)
-    df['Opinion Count'] = df['Opinion Count'].apply(lambda x: x.split()[0] if pd.notna(x) else x)
+    # Convertir todos los valores de 'Opinion Count' a string antes de aplicar split
+    df['Opinion Count'] = df['Opinion Count'].apply(lambda x: str(x).split()[0] if pd.notna(x) else x)
     df.to_csv(file_name, index=False)
     print("Columna 'Opinion Count' normalizada.")
+
+
+# Función para dividir la lista en lotes de tamaño especificado
+def chunk_list(data, chunk_size):
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
 # Función principal
 def main():
     start_time = time.time()
-    
-    # Extraer enlaces de las primeras 6 páginas
-    all_tour_urls = extract_pages(base_url, 6)
-    print(f"Total de enlaces extraídos de las primeras 6 páginas: {len(all_tour_urls)}")
 
-    # Extraer enlaces de la página 14 a la 21 (8 páginas adicionales)
-    page_14_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-oa120-c42-Cusco_Cusco_Region.html"
-    more_tour_urls = extract_pages(page_14_url, 8)
-    all_tour_urls.extend(more_tour_urls)
-    print(f"Total de enlaces extraídos desde la página 14 a la 21: {len(more_tour_urls)}")
-    
-    # Extraer enlaces de la página 50 a la 56 (7 páginas adicionales)
-    page_50_url = "https://www.tripadvisor.com.pe/Attractions-g294314-Activities-oa480-c42-Cusco_Cusco_Region.html"
-    extra_tour_urls = extract_pages(page_50_url, 7, current_page=50)
-    all_tour_urls.extend(extra_tour_urls)
-    print(f"Total de enlaces extraídos desde la página 50 a la 56: {len(extra_tour_urls)}")
+    # Cargar los enlaces desde el archivo JSON
+    with open('tour_links.json', 'r') as json_file:
+        tour_urls = json.load(json_file)
 
-    # Extraer las reseñas de los tours extraídos
-    reviews_data = extract_tour_reviews(all_tour_urls)
+    total_urls = len(tour_urls)
+    print(f"Total de enlaces cargados desde JSON: {total_urls}")
 
-    # Guardar las reseñas en un archivo CSV
-    save_to_csv(reviews_data)
+    # Dividir los enlaces en lotes de 50
+    batch_size = 50
+    batches = list(chunk_list(tour_urls, batch_size))
+    num_batches = len(batches)
+
+    for i, batch in enumerate(batches):
+        print(f"Procesando lote {i + 1} de {num_batches}...")
+
+        # Extraer las reseñas del lote actual
+        reviews_data = extract_tour_reviews(batch)
+        
+        # Guardar las reseñas en un archivo CSV
+        save_to_csv(reviews_data)
+
+        # Si no es el último lote, esperar 2 minutos antes de procesar el siguiente
+        if i < num_batches - 1:
+            wait_time = 120  # Pausa de 2 minutos (120 segundos)
+            print(f"Esperando {wait_time // 60} minutos antes de procesar el siguiente lote...")
+            time.sleep(wait_time)  # Pausa de 2 minutos
 
     # Eliminar datos faltantes
     remove_missing_data()
@@ -243,11 +210,11 @@ def main():
     # Eliminar duplicados
     remove_duplicates()
 
-    # Normalizar las columnas
+    # Normalizar las columnas 'Rating' y 'Opinion Count'
     normalize_rating_column()
     normalize_review_count_column()
 
-    # Medir y mostrar el tiempo de ejecución
+    # Medir y mostrar el tiempo de ejecución total
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Tiempo total de ejecución: {execution_time:.2f} segundos")
