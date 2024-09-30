@@ -8,18 +8,29 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 import seaborn as sns
 
-# Cargar el CSV ya procesado y limpio del código de EDA
-df = pd.read_csv("Dataset_after_all.csv", encoding='utf-8')
+# Cargar el archivo CSV
+df = pd.read_csv("combined_dataset_normalized.csv", sep=";", encoding='utf-8')
 
-# Reemplazar "No" por NaN y asegurar que los valores sean numéricos
-columns_to_replace = ['Opinion Count', 'Image Count', 'Rating', 'Excelente', 'Muy bueno', 'Promedio', 'Mala', 'Horrible']
-for col in columns_to_replace:
-    df[col] = df[col].replace('No', np.nan)  # Reemplazar "No" por NaN
-    df[col] = df[col].replace(',', '', regex=True)
-    df[col] = pd.to_numeric(df[col], errors='coerce')
+# --- LIMPIEZA DE DATOS ---
+def clean_data():
+    """
+    Reemplaza valores "No" por NaN y asegura que las columnas relevantes sean numéricas.
+    Además, elimina caracteres especiales en las columnas numéricas y convierte el formato a float.
+    """
+    columns_to_replace = ['Opinion Count', 'Image Count', 'Rating', 'Excelente', 'Muy bueno', 'Promedio', 'Mala', 'Horrible',
+                          '1_estrella', '2_estrellas', '3_estrellas', '4_estrellas', '5_estrellas']
 
-# Eliminar filas con NaN en las columnas predictoras y el objetivo (Rating)
-df = df.dropna(subset=columns_to_replace)
+    # Reemplazar "No" por NaN y convertir las columnas a numérico
+    for col in columns_to_replace:
+        df[col] = df[col].replace('No', np.nan)  # Reemplazar "No" por NaN
+        df[col] = df[col].replace(',', '', regex=True)  # Eliminar comas en los valores numéricos
+        df[col] = pd.to_numeric(df[col], errors='coerce')  # Convertir a numérico
+
+    # Eliminar filas con NaN en las columnas numéricas
+    df.dropna(subset=columns_to_replace, inplace=True)
+
+# Ejecutar la limpieza de datos
+clean_data()
 
 # --- Visualización: Heatmap de correlaciones ---
 def heatmap():
@@ -79,7 +90,8 @@ def rating_LinearRegression():
     """
     Aplica regresión lineal usando todas las columnas numéricas para predecir el 'Rating'.
     """
-    X = df.drop(['Rating', 'Tour Title', 'Tour URL'], axis=1)
+    # Eliminar columnas no numéricas
+    X = df.drop(['Rating', 'Tour Title', 'Tour URL', 'Source'], axis=1)  # 'Source' añadido
     y = df['Rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -110,7 +122,8 @@ def rating_Decision_Tree_Regression():
     Aplica un modelo de árbol de decisión para predecir 'Rating'.
     Incluye búsqueda de hiperparámetros con GridSearchCV.
     """
-    X = df.drop(['Rating', 'Tour Title', 'Tour URL'], axis=1)
+    # Eliminar columnas no numéricas
+    X = df.drop(['Rating', 'Tour Title', 'Tour URL', 'Source'], axis=1)  # 'Source' añadido
     y = df['Rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -144,7 +157,8 @@ def rating_Random_Forest_Regression():
     Aplica un modelo de bosque aleatorio para predecir 'Rating'.
     Incluye búsqueda de hiperparámetros con GridSearchCV.
     """
-    X = df.drop(['Rating', 'Tour Title', 'Tour URL'], axis=1)
+    # Eliminar columnas no numéricas
+    X = df.drop(['Rating', 'Tour Title', 'Tour URL', 'Source'], axis=1)  # 'Source' añadido
     y = df['Rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
