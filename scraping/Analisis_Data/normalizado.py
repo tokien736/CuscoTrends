@@ -7,49 +7,60 @@ tripadvisor_df = pd.read_csv(r"D:/Taller de investigacion/scraping/CuscoTrends/s
 tripadvisor_df['Opinion Count'] = tripadvisor_df['Opinion Count'].replace('No', -1)
 tripadvisor_df['Rating'] = tripadvisor_df['Rating'].replace('No', -1)
 tripadvisor_df['Image Count'] = tripadvisor_df['Image Count'].replace('No disponible', -1)
+
 # Asegurarse que los valores sean numéricos donde corresponde
 tripadvisor_df['Opinion Count'] = pd.to_numeric(tripadvisor_df['Opinion Count'], errors='coerce')
 tripadvisor_df['Image Count'] = pd.to_numeric(tripadvisor_df['Image Count'], errors='coerce')
 tripadvisor_df['Rating'] = pd.to_numeric(tripadvisor_df['Rating'], errors='coerce')
 
 # Crear las columnas de estrellas en TripAdvisor
-tripadvisor_df['5_estrellas'] = tripadvisor_df['Excelente']
-tripadvisor_df['4_estrellas'] = tripadvisor_df['Muy bueno']
-tripadvisor_df['3_estrellas'] = tripadvisor_df['Promedio']
-tripadvisor_df['2_estrellas'] = tripadvisor_df['Mala']
-tripadvisor_df['1_estrella'] = tripadvisor_df['Horrible']
+tripadvisor_df['5_estrellas'] = pd.to_numeric(tripadvisor_df['Excelente'], errors='coerce')
+tripadvisor_df['4_estrellas'] = pd.to_numeric(tripadvisor_df['Muy bueno'], errors='coerce')
+tripadvisor_df['3_estrellas'] = pd.to_numeric(tripadvisor_df['Promedio'], errors='coerce')
+tripadvisor_df['2_estrellas'] = pd.to_numeric(tripadvisor_df['Mala'], errors='coerce')
+tripadvisor_df['1_estrella'] = pd.to_numeric(tripadvisor_df['Horrible'], errors='coerce')
+
+# Calcular los porcentajes de las opiniones en TripAdvisor
+tripadvisor_df['5 Estrellas'] = (tripadvisor_df['5_estrellas'] / tripadvisor_df['Opinion Count']) * 100
+tripadvisor_df['4 Estrellas'] = (tripadvisor_df['4_estrellas'] / tripadvisor_df['Opinion Count']) * 100
+tripadvisor_df['3 Estrellas'] = (tripadvisor_df['3_estrellas'] / tripadvisor_df['Opinion Count']) * 100
+tripadvisor_df['2 Estrellas'] = (tripadvisor_df['2_estrellas'] / tripadvisor_df['Opinion Count']) * 100
+tripadvisor_df['1 Estrella'] = (tripadvisor_df['1_estrella'] / tripadvisor_df['Opinion Count']) * 100
 
 # Leer dataset de Trustpilot
-trustpilot_df = pd.read_csv(r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Trustpilot/Dataset_after_all_purged.csv")
+trustpilot_df = pd.read_csv(r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Trustpilot/final_tour_reviews.csv")
 
 # Limpiar y normalizar Trustpilot
-trustpilot_df['Opinion Count'] = trustpilot_df.apply(lambda x: x['Total Opinions'] if x['Opinion Count'] == 'Opiniones' else x['Opinion Count'], axis=1)
+trustpilot_df['Opinion Count'] = pd.to_numeric(trustpilot_df['Total Opinions'], errors='coerce')
 trustpilot_df['Rating'] = trustpilot_df['Rating'].str.replace(',', '.').astype(float)
+
+# Calcular los porcentajes de las opiniones en Trustpilot
+trustpilot_df['5 Estrellas'] = (trustpilot_df['5_estrellas'] / trustpilot_df['Opinion Count']) * 100
+trustpilot_df['4 Estrellas'] = (trustpilot_df['4_estrellas'] / trustpilot_df['Opinion Count']) * 100
+trustpilot_df['3 Estrellas'] = (trustpilot_df['3_estrellas'] / trustpilot_df['Opinion Count']) * 100
+trustpilot_df['2 Estrellas'] = (trustpilot_df['2_estrellas'] / trustpilot_df['Opinion Count']) * 100
+trustpilot_df['1 Estrella'] = (trustpilot_df['1_estrella'] / trustpilot_df['Opinion Count']) * 100
 
 # Renombrar columnas de Trustpilot para unificar con TripAdvisor
 trustpilot_df = trustpilot_df.rename(columns={
-    'Business Title': 'Tour Title',
-    'Total Opinions': 'Opinion Count'
+    'Business Title': 'Tour Title'
 })
 
 # Añadir una columna para indicar la fuente de los datos
 tripadvisor_df['Source'] = 'TripAdvisor'
 trustpilot_df['Source'] = 'Trustpilot'
 
-# Unir los nombres de las columnas, eliminando duplicados
-common_columns = list(set(tripadvisor_df.columns).union(set(trustpilot_df.columns)))
+# Seleccionar las columnas clave para la tabla normalizada final
+tripadvisor_columns = ['Tour Title', 'Source', 'Opinion Count', 'Rating', '5 Estrellas', '4 Estrellas', '3 Estrellas', '2 Estrellas', '1 Estrella']
+trustpilot_columns = ['Tour Title', 'Source', 'Opinion Count', 'Rating', '5 Estrellas', '4 Estrellas', '3 Estrellas', '2 Estrellas', '1 Estrella']
 
-# Asegurarse de que ambos DataFrames tengan las mismas columnas (rellenar con NaN si faltan columnas en cualquiera de los dos)
-tripadvisor_df = tripadvisor_df.loc[:, ~tripadvisor_df.columns.duplicated()]
-trustpilot_df = trustpilot_df.loc[:, ~trustpilot_df.columns.duplicated()]
+tripadvisor_df = tripadvisor_df[tripadvisor_columns]
+trustpilot_df = trustpilot_df[trustpilot_columns]
 
-tripadvisor_df = tripadvisor_df.reindex(columns=common_columns)
-trustpilot_df = trustpilot_df.reindex(columns=common_columns)
-
-# Unir ambos datasets basados en la columna 'Tour URL'
+# Unir ambos datasets
 combined_df = pd.concat([tripadvisor_df, trustpilot_df], ignore_index=True)
 
-# Guardar el dataset combinado en un único archivo CSV utilizando punto y coma como delimitador
+# Guardar el dataset combinado y normalizado en un archivo CSV
 output_path = r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/combined_dataset_normalized.csv"
 combined_df.to_csv(output_path, index=False, sep=';')
 
