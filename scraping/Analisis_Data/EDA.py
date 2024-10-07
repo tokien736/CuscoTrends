@@ -3,8 +3,9 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 # Cargar el archivo CSV en un DataFrame (usando separador ';')
-file_path = 'combined_dataset_normalized.csv'
+file_path = r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/combined_dataset_normalized.csv"
 df = pd.read_csv(file_path, sep=';')
+
 
 # --- LIMPIEZA DE DATOS ---
 def change_to_numeric_and_clean():

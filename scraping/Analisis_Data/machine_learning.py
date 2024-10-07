@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 
 # Cargar el archivo CSV
-df = pd.read_csv("combined_dataset_normalized.csv", sep=";", encoding='utf-8')
+df = pd.read_csv(r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/combined_dataset_normalized.csv", sep=";", encoding='utf-8')
 
 # --- LIMPIEZA DE DATOS ---
 def clean_data(df):
