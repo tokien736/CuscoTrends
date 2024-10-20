@@ -100,7 +100,7 @@ def extract_tour_data(tour_url, session):
     }
 
 # Función para guardar los datos en un archivo CSV (acumulando los datos)
-def save_to_csv(reviews_data, filename='final_tour_reviews.csv'):
+def save_to_csv(reviews_data, filename='final_tour_reviewcsvs.'):
     df = pd.DataFrame(reviews_data)
     if not df.empty:
         if os.path.exists(filename):
