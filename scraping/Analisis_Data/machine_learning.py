@@ -6,33 +6,54 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import StandardScaler
 import seaborn as sns
+from sqlalchemy import create_engine
 
-# Cargar el archivo CSV
-df = pd.read_csv(r"D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/combined_dataset_normalized.csv", sep=";", encoding='utf-8')
+# Función para conectar a la base de datos MySQL usando SQLAlchemy
+def conectar_mysql():
+    """
+    Establece la conexión con la base de datos MySQL utilizando SQLAlchemy sin contraseña.
+    """
+    try:
+        engine = create_engine("mysql+mysqlconnector://root:@localhost/cuscotrends")
+        print("Conexión exitosa a la base de datos")
+        return engine
+    except Exception as e:
+        print(f"Error al conectar a MySQL: {e}")
+        return None
+
+# --- Cargar los datos desde la base de datos ---
+def cargar_datos_desde_bd():
+    """
+    Carga los datos de la tabla 'reviews' desde la base de datos y selecciona las columnas relevantes.
+    """
+    engine = conectar_mysql()
+    if engine is None:
+        return None
+    
+    query = """
+    SELECT tour_title, source, opinion_count, rating, estrellas_5, estrellas_4, 
+           estrellas_3, estrellas_2, estrellas_1 
+    FROM reviews
+    """
+    df = pd.read_sql(query, engine)
+    print(df.columns)  # Imprimir las columnas para verificar los nombres
+    return df
 
 # --- LIMPIEZA DE DATOS ---
 def clean_data(df):
     """
-    Reemplaza valores no disponibles por NaN y asegura que las columnas relevantes sean numéricas.
+    Asegura que las columnas relevantes sean numéricas.
     """
-    columns_to_replace = ['Opinion Count', 'Rating', '5 Estrellas', '4 Estrellas', '3 Estrellas', '2 Estrellas', '1 Estrella']
+    columns_to_replace = ['opinion_count', 'rating', 'estrellas_5', 'estrellas_4', 
+                          'estrellas_3', 'estrellas_2', 'estrellas_1']
 
-    # Reemplazar "No" y otros valores inválidos por NaN y convertir las columnas a numérico
+    # Convertir las columnas a numérico
     for col in columns_to_replace:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # Eliminar filas con NaN en las columnas numéricas
     df.dropna(subset=columns_to_replace, inplace=True)
-    return df
-
-# Ejecutar la limpieza de datos
-df = clean_data(df)
-
-# --- Verificar la variabilidad de la columna "Rating" ---
-print("Resumen de la columna 'Rating':")
-print(df['Rating'].describe())
 
 # --- Visualización: Heatmap de correlaciones ---
 def heatmap(df):
@@ -46,43 +67,15 @@ def heatmap(df):
     plt.title('Mapa de calor de las correlaciones entre variables')
     plt.show()
 
-# Mostrar el heatmap
-heatmap(df)
-
-# --- Función para graficar Actual vs Predicted ---
-def plot_actual_vs_predicted(y_test, y_pred, title):
-    """
-    Genera un gráfico de dispersión con los valores reales vs. los valores predichos.
-    Incluye una línea de identidad para facilitar la comparación.
-    """
-    plt.figure(figsize=(8, 6))
-    plt.scatter(y_test, y_pred, alpha=0.7, label='Predicted vs Actual', color='blue')
-    
-    # Dibujar la línea de identidad (predicción perfecta)
-    max_val = max(max(y_test), max(y_pred))
-    min_val = min(min(y_test), min(y_pred))
-    plt.plot([min_val, max_val], [min_val, max_val], color='red', linestyle='--', label='Perfect Prediction')
-
-    plt.xlabel("Actual Ratings")
-    plt.ylabel("Predicted Ratings")
-    plt.title(title)
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
 # --- Funciones de Machine Learning ---
 
-# 1. Linear Regression para Rating vs. Opinion Count y Image Count
+# 1. Linear Regression para Rating vs. Opinion Count
 def rating_ReviewPicture_LinearRegression(df):
     """
-    Aplica regresión lineal a 'Rating' usando 'Opinion Count' e 'Image Count' como predictores.
+    Aplica regresión lineal a 'Rating' usando 'Opinion Count' como predictor.
     """
-    X = df[['Opinion Count']]
-    y = df['Rating']
-    
-    # Normalizar los datos si es necesario
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
+    X = df[['opinion_count']]
+    y = df['rating']
     
     # Separar en conjunto de entrenamiento y prueba
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -104,8 +97,13 @@ def rating_ReviewPicture_LinearRegression(df):
     print(f"R-squared: {r2}")
     print(f"Adjusted R-squared: {adjusted_r2}")
     
-    # Visualizar resultados usando la función mejorada
-    plot_actual_vs_predicted(y_test, y_pred, "Linear Regression - Actual vs. Predicted Ratings (Opinion Count)")
+    # Visualizar resultados
+    plt.figure(figsize=(8, 6))
+    plt.scatter(y_test, y_pred, alpha=0.7)
+    plt.xlabel("Actual Ratings")
+    plt.ylabel("Predicted Ratings")
+    plt.title("Linear Regression - Actual vs. Predicted Ratings")
+    plt.show()
 
 # 2. Linear Regression para todos los parámetros
 def rating_LinearRegression(df):
@@ -113,12 +111,8 @@ def rating_LinearRegression(df):
     Aplica regresión lineal usando todas las columnas numéricas para predecir el 'Rating'.
     """
     # Eliminar columnas no numéricas
-    X = df.drop(['Rating', 'Tour Title', 'Source'], axis=1)
-    y = df['Rating']
-    
-    # Normalizar los datos si es necesario
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
+    X = df.drop(['rating', 'tour_title', 'source'], axis=1)
+    y = df['rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = LinearRegression()
@@ -135,8 +129,12 @@ def rating_LinearRegression(df):
     print(f"R-squared: {r2}")
     print(f"Adjusted R-squared: {adjusted_r2}")
     
-    # Visualizar resultados
-    plot_actual_vs_predicted(y_test, y_pred, "Linear Regression - Actual vs. Predicted Ratings (Todos los parámetros)")
+    plt.figure(figsize=(8, 6))
+    plt.scatter(y_test, y_pred, alpha=0.7)
+    plt.xlabel("Actual Ratings")
+    plt.ylabel("Predicted Ratings")
+    plt.title("Linear Regression - Actual vs. Predicted Ratings")
+    plt.show()
 
 # 3. Decision Tree Regression con búsqueda de hiperparámetros
 def rating_Decision_Tree_Regression(df):
@@ -145,8 +143,8 @@ def rating_Decision_Tree_Regression(df):
     Incluye búsqueda de hiperparámetros con GridSearchCV.
     """
     # Eliminar columnas no numéricas
-    X = df.drop(['Rating', 'Tour Title', 'Source'], axis=1)
-    y = df['Rating']
+    X = df.drop(['rating', 'tour_title', 'source'], axis=1)
+    y = df['rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
@@ -166,8 +164,12 @@ def rating_Decision_Tree_Regression(df):
     print(f"Mean Squared Error: {mse}")
     print(f"R-squared: {r2}")
     
-    # Visualizar resultados
-    plot_actual_vs_predicted(y_test, y_pred, "Decision Tree Regression - Actual vs. Predicted Ratings")
+    plt.figure(figsize=(8, 6))
+    plt.scatter(y_test, y_pred, alpha=0.7)
+    plt.xlabel("Actual Ratings")
+    plt.ylabel("Predicted Ratings")
+    plt.title("Decision Tree Regression - Actual vs. Predicted Ratings")
+    plt.show()
 
 # 4. Random Forest Regression con GridSearchCV
 def rating_Random_Forest_Regression(df):
@@ -176,8 +178,8 @@ def rating_Random_Forest_Regression(df):
     Incluye búsqueda de hiperparámetros con GridSearchCV.
     """
     # Eliminar columnas no numéricas
-    X = df.drop(['Rating', 'Tour Title', 'Source'], axis=1)
-    y = df['Rating']
+    X = df.drop(['rating', 'tour_title', 'source'], axis=1)
+    y = df['rating']
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
@@ -197,11 +199,26 @@ def rating_Random_Forest_Regression(df):
     print(f"Mean Squared Error: {mse}")
     print(f"R-squared: {r2}")
     
-    # Visualizar resultados
-    plot_actual_vs_predicted(y_test, y_pred, "Random Forest Regression - Actual vs. Predicted Ratings")
+    plt.figure(figsize=(8, 6))
+    plt.scatter(y_test, y_pred, alpha=0.7)
+    plt.xlabel("Actual Ratings")
+    plt.ylabel("Predicted Ratings")
+    plt.title("Random Forest Regression - Actual vs. Predicted Ratings")
+    plt.show()
 
 # --- Ejecutar Modelos ---
-rating_ReviewPicture_LinearRegression(df)
-rating_LinearRegression(df)
-rating_Decision_Tree_Regression(df)
-rating_Random_Forest_Regression(df)
+def main():
+    df = cargar_datos_desde_bd()
+
+    if df is not None:
+        clean_data(df)
+        heatmap(df)
+        rating_ReviewPicture_LinearRegression(df)
+        rating_LinearRegression(df)
+        rating_Decision_Tree_Regression(df)
+        rating_Random_Forest_Regression(df)
+    else:
+        print("No se pudieron cargar los datos desde la base de datos.")
+
+if __name__ == "__main__":
+    main()
