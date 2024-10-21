@@ -5,8 +5,9 @@ from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
 from jose import JWTError, jwt
-
-from .database import get_db, Base, engine  # Importar correctamente get_db
+import subprocess
+import time
+from .database import get_db, Base, engine
 from .models import Usuario
 from .schemas import UsuarioCreate, Token
 
@@ -120,3 +121,64 @@ async def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depen
     if user is None:
         raise credentials_exception
     return user
+
+# Ruta para ejecutar main.py
+@app.post("/analisis-datos")
+def ejecutar_analisis_datos():
+    try:
+        # Ejecutar el main.py
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/main.py"], check=True)
+        return {"message": "Análisis de datos (main.py) completado con éxito"}
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output}
+
+# Ruta para ejecutar EDA.py
+@app.post("/analisis-eda")
+def ejecutar_analisis_eda():
+    try:
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/EDA.py"], check=True)
+        return {"message": "Análisis EDA (EDA.py) completado con éxito"}
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output}
+
+# Ruta para ejecutar machine_learning.py
+@app.post("/analisis-ml")
+def ejecutar_analisis_ml():
+    try:
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/machine_learning.py"], check=True)
+        return {"message": "Análisis de machine learning (machine_learning.py) completado con éxito"}
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output}
+    
+@app.post("/scraping-tripadvisor")
+def ejecutar_scraping_tripadvisor():
+    try:
+        # Ejecutar el tour_scraper.py
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/TripAdvisor/tour_scraper.py"], check=True)
+
+        # Agregar un delay de 30 segundos antes de ejecutar el siguiente script
+        time.sleep(30)
+        
+        # Ejecutar el datasetCV.py
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/TripAdvisor/datasetCV.py"], check=True)
+
+        return {"message": "Scraping de TripAdvisor completado con éxito"}
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output}
+    
+# Ruta para ejecutar Trustpilot secuencialmente
+@app.post("/scraping-trustpilot")
+def ejecutar_scraping_trustpilot():
+    try:
+        # Ejecutar extract_links.py primero
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/Trustpilot/extract_links.py"], check=True)
+
+        # Retardo de 30 segundos antes de ejecutar el siguiente script
+        time.sleep(30)
+
+        # Ejecutar datasetCV.py después del retraso
+        subprocess.run(["python", "D:/Taller de investigacion/scraping/CuscoTrends/scraping/Trustpilot/datasetCV.py"], check=True)
+
+        return {"message": "Scraping de Trustpilot completado con éxito"}
+    except subprocess.CalledProcessError as e:
+        return {"error": str(e), "output": e.output}
