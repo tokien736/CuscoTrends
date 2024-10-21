@@ -5,10 +5,6 @@ class UsuarioCreate(BaseModel):
     email: str
     password: str
 
-class UsuarioResponse(BaseModel):
-    id: int
-    nombre: str
-    email: str
-
-    class Config:
-        from_attributes = True  # Cambia 'orm_mode' por 'from_attributes'
+class Token(BaseModel):
+    access_token: str
+    token_type: str

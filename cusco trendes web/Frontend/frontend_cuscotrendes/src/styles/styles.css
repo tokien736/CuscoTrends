@@ -1,0 +1,45 @@
+/* Colores personalizados */
+:root {
+    --primary-color: #007bff; /* Color azul de Bootstrap */
+    --secondary-color: #6c757d;
+    --background-color: #f8f9fa;
+    --text-color: #212529;
+  }
+  
+  /* Aplicar color de fondo global */
+  body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+  
+  /* Estilos personalizados para encabezados */
+  h1, h2 {
+    color: var(--primary-color);
+  }
+  
+  /* Ajustes a los contenedores para margenes */
+  .container {
+    margin-top: 20px;
+  }
+  
+  /* Estilo de tabla */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  table thead {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  table tr:hover {
+    background-color: var(--secondary-color);
+    color: white;
+  }
+  
+  /* Estilo de los botones */
+  button {
+    border-radius: 5px;
+  }
+  

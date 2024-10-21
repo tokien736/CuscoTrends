@@ -1,22 +1,18 @@
-import mysql.connector
-from mysql.connector import Error
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-def get_db_connection():
+SQLALCHEMY_DATABASE_URL = "mysql+mysqlconnector://root@localhost/cuscotrends"  # Ajusta esta URL
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+# Función para obtener la sesión de la base de datos
+def get_db():
+    db = SessionLocal()
     try:
-        connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",  # Coloca tu contraseña de MySQL aquí
-            database="cuscotrends"
-        )
-        if connection.is_connected():
-            print("Conexión exitosa a la base de datos")
-            return connection
-    except Error as e:
-        print(f"Error al conectar a MySQL: {e}")
-        return None
-
-def cerrar_conexion(connection):
-    if connection.is_connected():
-        connection.close()
-        print("Conexión cerrada correctamente")
+        yield db
+    finally:
+        db.close()
