@@ -1,7 +1,9 @@
+// src/components/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Modal, Button, Spinner } from 'react-bootstrap';
+import { Modal, Button, Spinner, Container, Row, Col } from 'react-bootstrap';
 import { ejecutarAnalisisDatos, ejecutarEDA, ejecutarML, ejecutarScrapingTripadvisor, ejecutarScrapingTrustpilot } from '../services/api';
+import { FaTripadvisor, FaSearch, FaRobot } from 'react-icons/fa';
 
 const Dashboard = () => {
   const [isExecuting, setIsExecuting] = useState(false);
@@ -9,9 +11,8 @@ const Dashboard = () => {
   const [analisisResponse, setAnalisisResponse] = useState(null);
   const [imagenesEDA, setImagenesEDA] = useState([]);
   const [imagenesML, setImagenesML] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(null); // Estado para la imagen seleccionada
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  // Función para obtener las imágenes desde el backend
   const obtenerImagenes = async (tipo, setImagenes) => {
     try {
       const response = await axios.get(`http://127.0.0.1:8000/listar-imagenes/${tipo}`);
@@ -21,7 +22,6 @@ const Dashboard = () => {
     }
   };
 
-  // Cargar las imágenes al montar el componente
   useEffect(() => {
     obtenerImagenes('eda', setImagenesEDA);
     obtenerImagenes('machine_learning', setImagenesML);
@@ -81,34 +81,33 @@ const Dashboard = () => {
     }
   };
 
-  // Función para abrir el modal de imagen
   const abrirImagen = (imagen) => {
     setSelectedImage(imagen);
   };
 
-  // Función para cerrar el modal de imagen
   const cerrarImagen = () => {
     setSelectedImage(null);
   };
 
   return (
-    <div className="container mt-5">
-      <h2>Bienvenido al Dashboard</h2>
-      <div className="mt-4">
-        <button className="btn btn-primary me-2" onClick={handleScrapingTripadvisor} disabled={isExecuting}>
-          Scraping TripAdvisor
-        </button>
-        <button className="btn btn-secondary me-2" onClick={handleScrapingTrustpilot} disabled={isExecuting}>
-          Scraping Trustpilot
-        </button>
-        <button className="btn btn-success" onClick={handleAnalisisDatos} disabled={isExecuting}>
-          Análisis de Datos
-        </button>
+    <Container className="dashboard-container mt-5 text-light">
+      <h2 className="dashboard-title mb-4 text-center">Bienvenido al Dashboard</h2>
+
+      <div className="text-center mb-5">
+        <Button variant="primary" className="btn-action mx-2" onClick={handleScrapingTripadvisor} disabled={isExecuting}>
+          <FaTripadvisor className="me-2" /> Scraping TripAdvisor
+        </Button>
+        <Button variant="secondary" className="btn-action mx-2" onClick={handleScrapingTrustpilot} disabled={isExecuting}>
+          <FaSearch className="me-2" /> Scraping Trustpilot
+        </Button>
+        <Button variant="success" className="btn-action mx-2" onClick={handleAnalisisDatos} disabled={isExecuting}>
+          <FaRobot className="me-2" /> Análisis de Datos
+        </Button>
       </div>
 
       {isExecuting && (
-        <div className="mt-4">
-          <Spinner animation="border" role="status">
+        <div className="d-flex justify-content-center align-items-center mb-5">
+          <Spinner animation="border" role="status" className="me-2 spinner-custom">
             <span className="visually-hidden">Cargando...</span>
           </Spinner>
           <p>Procesando...</p>
@@ -132,37 +131,36 @@ const Dashboard = () => {
         </Modal.Footer>
       </Modal>
 
-      <div className="mt-5">
-        <h3>Imágenes Generadas (EDA)</h3>
-        <div className="row">
+      <div className="mb-5">
+        <h3 className="text-center section-title">Imágenes Generadas (EDA)</h3>
+        <Row className="mt-4">
           {imagenesEDA.map((imagen) => (
-            <div className="col-md-4" key={imagen.nombre} onClick={() => abrirImagen(imagen)}>
-              <img src={imagen.url} alt={imagen.nombre} className="img-fluid" style={{ cursor: 'pointer' }} />
-              <p>{imagen.nombre}</p>
-            </div>
+            <Col md={4} key={imagen.nombre} className="mb-4 img-col" onClick={() => abrirImagen(imagen)}>
+              <img src={imagen.url} alt={imagen.nombre} className="img-fluid rounded shadow img-card" />
+              <p className="text-center img-title">{imagen.nombre}</p>
+            </Col>
           ))}
-        </div>
+        </Row>
       </div>
 
-      <div className="mt-5">
-        <h3>Imágenes Generadas (Machine Learning)</h3>
-        <div className="row">
+      <div className="mb-5">
+        <h3 className="text-center section-title">Imágenes Generadas (Machine Learning)</h3>
+        <Row className="mt-4">
           {imagenesML.map((imagen) => (
-            <div className="col-md-4" key={imagen.nombre} onClick={() => abrirImagen(imagen)}>
-              <img src={imagen.url} alt={imagen.nombre} className="img-fluid" style={{ cursor: 'pointer' }} />
-              <p>{imagen.nombre}</p>
-            </div>
+            <Col md={4} key={imagen.nombre} className="mb-4 img-col" onClick={() => abrirImagen(imagen)}>
+              <img src={imagen.url} alt={imagen.nombre} className="img-fluid rounded shadow img-card" />
+              <p className="text-center img-title">{imagen.nombre}</p>
+            </Col>
           ))}
-        </div>
+        </Row>
       </div>
 
-      {/* Modal para mostrar la imagen seleccionada en tamaño grande */}
       <Modal show={!!selectedImage} onHide={cerrarImagen}>
         <Modal.Header closeButton>
           <Modal.Title>{selectedImage?.nombre}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <img src={selectedImage?.url} alt={selectedImage?.nombre} className="img-fluid" />
+        <Modal.Body className="text-center">
+          <img src={selectedImage?.url} alt={selectedImage?.nombre} className="img-fluid rounded" />
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarImagen}>
@@ -170,7 +168,7 @@ const Dashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-    </div>
+    </Container>
   );
 };
 

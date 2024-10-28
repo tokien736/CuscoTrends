@@ -1,28 +1,33 @@
+// src/components/Header.jsx
 import React from 'react';
+import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 const Header = () => {
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.href = '/';
+  };
+
   return (
-    <header>
-      <nav className="navbar navbar-expand-lg navbar-light bg-light">
-        <div className="container-fluid">
-          <Link className="navbar-brand" to="/">Inicio</Link>
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav">
-              <li className="nav-item">
-                <button className="nav-link btn btn-link" onClick={() => {
-                  localStorage.removeItem('token');
-                  window.location.href = '/';
-                }}>Cerrar Sesión</button>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    </header>
+    <Navbar bg="dark" variant="dark" expand="lg" className="custom-navbar">
+      <Container>
+        <Navbar.Brand as={Link} to="/" className="brand">
+          Cusco Trends
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <Navbar.Collapse id="basic-navbar-nav">
+          <Nav className="ml-auto">
+            <Nav.Link as={Link} to="/" className="nav-link-custom">Inicio</Nav.Link>
+            <li className="nav-item">
+              <button className="nav-link btn btn-link" onClick={handleLogout}>
+                Cerrar Sesión
+              </button>
+            </li>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 };
 
