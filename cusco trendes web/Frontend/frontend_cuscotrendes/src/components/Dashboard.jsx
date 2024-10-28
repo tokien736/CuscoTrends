@@ -1,97 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Modal, Button, Spinner } from 'react-bootstrap';
-import { ejecutarAnalisisDatos, ejecutarEDA, ejecutarML, ejecutarScrapingTripadvisor, ejecutarScrapingTrustpilot } from '../services/api';  // Asegúrate de que los servicios están importados
+import { ejecutarAnalisisDatos, ejecutarEDA, ejecutarML, ejecutarScrapingTripadvisor, ejecutarScrapingTrustpilot } from '../services/api';
 
 const Dashboard = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [analisisResponse, setAnalisisResponse] = useState(null);
+  const [imagenesEDA, setImagenesEDA] = useState([]);
+  const [imagenesML, setImagenesML] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null); // Estado para la imagen seleccionada
 
-  // Maneja la ejecución del scraping de TripAdvisor
-  const handleScrapingTripadvisor = async () => {
-    setIsExecuting(true);  // Muestra el spinner y el texto de carga
+  // Función para obtener las imágenes desde el backend
+  const obtenerImagenes = async (tipo, setImagenes) => {
     try {
-      const response = await ejecutarScrapingTripadvisor();
-      console.log('Scraping de TripAdvisor completado:', response);
+      const response = await axios.get(`http://127.0.0.1:8000/listar-imagenes/${tipo}`);
+      setImagenes(response.data.imagenes);
+    } catch (error) {
+      console.error(`Error al obtener imágenes de ${tipo}:`, error);
+    }
+  };
+
+  // Cargar las imágenes al montar el componente
+  useEffect(() => {
+    obtenerImagenes('eda', setImagenesEDA);
+    obtenerImagenes('machine_learning', setImagenesML);
+  }, []);
+
+  const handleScrapingTripadvisor = async () => {
+    setIsExecuting(true);
+    try {
+      await ejecutarScrapingTripadvisor();
       alert('Scraping de TripAdvisor completado con éxito.');
     } catch (error) {
-      console.error('Error ejecutando scraping de TripAdvisor:', error);
       alert('Error durante el scraping de TripAdvisor.');
     } finally {
-      setIsExecuting(false);  // Oculta el spinner
+      setIsExecuting(false);
     }
   };
 
-  // Maneja la ejecución del scraping de Trustpilot
   const handleScrapingTrustpilot = async () => {
-    setIsExecuting(true);  // Muestra el spinner y el texto de carga
+    setIsExecuting(true);
     try {
-      const response = await ejecutarScrapingTrustpilot();
-      console.log('Scraping de Trustpilot completado:', response);
+      await ejecutarScrapingTrustpilot();
       alert('Scraping de Trustpilot completado con éxito.');
     } catch (error) {
-      console.error('Error ejecutando scraping de Trustpilot:', error);
       alert('Error durante el scraping de Trustpilot.');
     } finally {
-      setIsExecuting(false);  // Oculta el spinner
+      setIsExecuting(false);
     }
   };
 
-  // Maneja la ejecución del análisis de datos principal
   const handleAnalisisDatos = async () => {
     setIsExecuting(true);
     try {
-      const response = await ejecutarAnalisisDatos();
-      console.log('Análisis de datos completado:', response);
-      setAnalisisResponse(response);
-      setShowModal(true);  // Mostrar modal después de ejecutar el análisis
+      await ejecutarAnalisisDatos();
+      setShowModal(true);
     } catch (error) {
-      console.error('Error ejecutando análisis de datos:', error);
       alert('Error durante el análisis de datos.');
     } finally {
-      setIsExecuting(false);  // Ocultar la carga
+      setIsExecuting(false);
     }
   };
 
-  // Maneja las opciones del modal para ejecutar los otros scripts
   const handleOpciones = async (ruta) => {
     setShowModal(false);
-    setIsExecuting(true);  // Mostrar el spinner para los análisis adicionales
+    setIsExecuting(true);
     try {
       if (ruta === 'eda') {
-        const response = await ejecutarEDA();
-        console.log('Análisis EDA completado:', response);
-        alert('Análisis EDA completado con éxito.');
+        await ejecutarEDA();
+        obtenerImagenes('eda', setImagenesEDA);
       } else if (ruta === 'ml') {
-        const response = await ejecutarML();
-        console.log('Análisis de machine learning completado:', response);
-        alert('Análisis de machine learning completado con éxito.');
+        await ejecutarML();
+        obtenerImagenes('machine_learning', setImagenesML);
       }
     } catch (error) {
-      console.error('Error ejecutando análisis:', error);
       alert('Error durante el análisis.');
     } finally {
       setIsExecuting(false);
     }
   };
 
+  // Función para abrir el modal de imagen
+  const abrirImagen = (imagen) => {
+    setSelectedImage(imagen);
+  };
+
+  // Función para cerrar el modal de imagen
+  const cerrarImagen = () => {
+    setSelectedImage(null);
+  };
+
   return (
     <div className="container mt-5">
       <h2>Bienvenido al Dashboard</h2>
-      <p>Has iniciado sesión con éxito.</p>
       <div className="mt-4">
         <button className="btn btn-primary me-2" onClick={handleScrapingTripadvisor} disabled={isExecuting}>
-          <i className="fas fa-search"></i> {isExecuting ? 'Scraping TripAdvisor...' : 'Scraping TripAdvisor'}
+          Scraping TripAdvisor
         </button>
         <button className="btn btn-secondary me-2" onClick={handleScrapingTrustpilot} disabled={isExecuting}>
-          <i className="fas fa-search"></i> {isExecuting ? 'Scraping Trustpilot...' : 'Scraping Trustpilot'}
+          Scraping Trustpilot
         </button>
         <button className="btn btn-success" onClick={handleAnalisisDatos} disabled={isExecuting}>
-          <i className="fas fa-chart-line"></i> {isExecuting ? 'Ejecutando Análisis...' : 'Análisis de Datos'}
+          Análisis de Datos
         </button>
       </div>
 
-      {/* Mostrar spinner y texto de carga durante la ejecución */}
       {isExecuting && (
         <div className="mt-4">
           <Spinner animation="border" role="status">
@@ -101,7 +115,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Modal para mostrar las opciones después del análisis */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Opciones de Análisis</Modal.Title>
@@ -115,6 +128,45 @@ const Dashboard = () => {
           </Button>
           <Button variant="primary" onClick={() => handleOpciones('ml')} disabled={isExecuting}>
             Ejecutar machine_learning.py
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <div className="mt-5">
+        <h3>Imágenes Generadas (EDA)</h3>
+        <div className="row">
+          {imagenesEDA.map((imagen) => (
+            <div className="col-md-4" key={imagen.nombre} onClick={() => abrirImagen(imagen)}>
+              <img src={imagen.url} alt={imagen.nombre} className="img-fluid" style={{ cursor: 'pointer' }} />
+              <p>{imagen.nombre}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <h3>Imágenes Generadas (Machine Learning)</h3>
+        <div className="row">
+          {imagenesML.map((imagen) => (
+            <div className="col-md-4" key={imagen.nombre} onClick={() => abrirImagen(imagen)}>
+              <img src={imagen.url} alt={imagen.nombre} className="img-fluid" style={{ cursor: 'pointer' }} />
+              <p>{imagen.nombre}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal para mostrar la imagen seleccionada en tamaño grande */}
+      <Modal show={!!selectedImage} onHide={cerrarImagen}>
+        <Modal.Header closeButton>
+          <Modal.Title>{selectedImage?.nombre}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <img src={selectedImage?.url} alt={selectedImage?.nombre} className="img-fluid" />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={cerrarImagen}>
+            Cerrar
           </Button>
         </Modal.Footer>
       </Modal>

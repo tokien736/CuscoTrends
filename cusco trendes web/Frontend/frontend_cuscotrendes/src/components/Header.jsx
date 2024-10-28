@@ -13,9 +13,6 @@ const Header = () => {
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav">
               <li className="nav-item">
-                <Link className="nav-link" to="/dashboard">Dashboard</Link>
-              </li>
-              <li className="nav-item">
                 <button className="nav-link btn btn-link" onClick={() => {
                   localStorage.removeItem('token');
                   window.location.href = '/';

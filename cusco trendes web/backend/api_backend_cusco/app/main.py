@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -10,7 +11,10 @@ import time
 from .database import get_db, Base, engine
 from .models import Usuario
 from .schemas import UsuarioCreate, Token
-
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+import os
 # Crear la base de datos
 Base.metadata.create_all(bind=engine)
 
@@ -182,3 +186,29 @@ def ejecutar_scraping_trustpilot():
         return {"message": "Scraping de Trustpilot completado con éxito"}
     except subprocess.CalledProcessError as e:
         return {"error": str(e), "output": e.output}
+    
+
+# Ruta a la carpeta de imágenes
+img_dir = Path("D:/Taller de investigacion/scraping/CuscoTrends/scraping/Analisis_Data/img")
+app.mount("/img", StaticFiles(directory=img_dir), name="img")
+
+@app.get("/listar-imagenes/{tipo}")
+async def listar_imagenes(tipo: str, request: Request):
+    """
+    Endpoint para listar imágenes disponibles en el directorio especificado.
+    tipo: 'eda' o 'machine_learning'
+    """
+    dir_path = img_dir / tipo
+    if not dir_path.exists() or not dir_path.is_dir():
+        return {"message": "Tipo de análisis no encontrado."}
+
+    # Construir URL completa de la imagen
+    imagenes = [
+        {
+            "nombre": file,
+            "url": f"{request.base_url}img/{tipo}/{file}"
+        }
+        for file in os.listdir(dir_path) if file.endswith(".png")
+    ]
+
+    return {"imagenes": imagenes}
