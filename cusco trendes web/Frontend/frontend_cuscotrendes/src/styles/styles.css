@@ -1,0 +1,270 @@
+/* ====== Colores personalizados para Modo Oscuro ====== */
+:root {
+  --primary-color: #BB86FC; /* Color de acento */
+  --secondary-color: #1E1E1E; /* Fondo secundario oscuro */
+  --background-color: #121212; /* Fondo oscuro */
+  --text-color: #E0E0E0; /* Texto claro */
+  --text-secondary-color: #A3A3A3; /* Texto secundario */
+  --hover-color: #333333; /* Color de fondo en hover */
+}
+
+/* ====== Estilos Generales ====== */
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: Arial, sans-serif;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #9c4dcc;
+  cursor: pointer;
+}
+
+h1, h2 {
+  color: var(--primary-color);
+}
+
+/* ====== Estilos del Header ====== */
+.custom-navbar {
+  background-color: var(--background-color);
+  padding: 10px 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.brand {
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav-link-custom {
+  color: var(--text-color);
+  font-size: 1.1rem;
+  transition: color 0.3s ease;
+}
+
+.nav-link-custom:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* ====== Estilos del Footer ====== */
+.footer {
+  background-color: var(--secondary-color);
+  color: var(--text-secondary-color);
+  text-align: center;
+  padding: 15px 0;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ====== Estilos de Login ====== */
+.login-container {
+  height: 100vh;
+  background-color: var(--background-color);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--secondary-color);
+  border-radius: 10px;
+  padding: 20px;
+  color: var(--text-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.login-title {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.form-label {
+  color: var(--text-secondary-color);
+}
+
+.login-input {
+  background-color: #333333;
+  border: none;
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.login-input:focus {
+  background-color: #444444;
+  color: white;
+  border: 1px solid var(--primary-color);
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #9c4dcc;
+}
+
+/* ====== Estilos de Register ====== */
+.register-container {
+  height: 100vh;
+  background-color: var(--background-color);
+}
+
+.register-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--secondary-color);
+  border-radius: 10px;
+  padding: 20px;
+  color: var(--text-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.register-title {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.register-input {
+  background-color: #333333;
+  border: none;
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.register-input:focus {
+  background-color: #444444;
+  color: white;
+  border: 1px solid var(--primary-color);
+  box-shadow: none;
+}
+
+/* ====== Estilos del Dashboard ====== */
+.dashboard-container {
+  padding: 2rem;
+  background-color: var(--background-color);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-title {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+}
+
+/* Botones con Iconos */
+.btn-action {
+  padding: 0.8rem 1.2rem;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+}
+
+/* Spinner */
+.spinner-custom {
+  color: var(--primary-color);
+}
+
+/* Estilos de Imágenes en el Dashboard */
+.img-col {
+  transition: transform 0.3s ease;
+}
+
+.img-col:hover {
+  transform: scale(1.05);
+}
+
+.img-card {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: box-shadow 0.3s ease;
+}
+
+.img-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.img-title {
+  color: var(--text-secondary-color);
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Secciones de Título */
+.section-title {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+/* ====== Estilos para Modales en el Dashboard ====== */
+.modal-content {
+  background-color: var(--secondary-color);
+  border-radius: 8px;
+  color: var(--text-color);
+}
+
+.modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+}
+
+.modal-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-body p {
+  color: var(--text-secondary-color);
+}
+
+/* ====== Estilos para NotFound ====== */
+.notfound-container {
+  height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  text-align: center;
+}
+
+.notfound-icon {
+  font-size: 3rem;
+  color: var(--primary-color);
+}
+
+.notfound-title {
+  font-size: 2.5rem;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.notfound-text {
+  font-size: 1.2rem;
+  color: var(--text-secondary-color);
+  max-width: 500px;
+}

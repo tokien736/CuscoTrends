@@ -8,6 +8,7 @@ import concurrent.futures
 import os
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import ast
 
 # Función para obtener un header aleatorio
 user_agents = [
@@ -23,7 +24,7 @@ def create_session():
     retry_strategy = Retry(
         total=5,
         backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
+        status_forcelist=[429, 500, 502, 503, 504, 403],
         allowed_methods=["HEAD", "GET", "OPTIONS"]
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -99,7 +100,7 @@ def extract_tour_data(tour_url, session):
     }
 
 # Función para guardar los datos en un archivo CSV (acumulando los datos)
-def save_to_csv(reviews_data, filename='final_tour_reviews.csv'):
+def save_to_csv(reviews_data, filename='final_tour_reviewcsvs.'):
     df = pd.DataFrame(reviews_data)
     if not df.empty:
         if os.path.exists(filename):
@@ -110,35 +111,70 @@ def save_to_csv(reviews_data, filename='final_tour_reviews.csv'):
     else:
         print("No se extrajeron datos.")
 
-# Función para eliminar datos faltantes
-def remove_missing_data(file_name='final_tour_reviews.csv'):
+# Proceso de limpieza y normalización en un solo paso
+def clean_and_normalize(file_name='final_tour_reviews.csv'):
+    # Cargar el archivo
     df = pd.read_csv(file_name)
-    without_missing_dataset = df.dropna()
-    without_missing_dataset.to_csv("Without_Missing_Dataset.csv", index=False)
-    print("Dataset sin datos faltantes guardado como 'Without_Missing_Dataset.csv'.")
-    return without_missing_dataset
 
-# Función para eliminar duplicados
-def remove_duplicates(file_name='Without_Missing_Dataset.csv'):
-    df = pd.read_csv(file_name)
-    without_duplicates_dataset = df.drop_duplicates()
-    without_duplicates_dataset.to_csv("Without_Duplicates_Dataset.csv", index=False)
-    print("Dataset sin duplicados guardado como 'Without_Duplicates_Dataset.csv'.")
-    return without_duplicates_dataset
+    # Eliminar filas con datos faltantes
+    df = df.dropna()
 
-# Función para normalizar la columna 'Rating'
-def normalize_rating_column(file_name='Without_Duplicates_Dataset.csv'):
-    df = pd.read_csv(file_name)
+    # Eliminar duplicados
+    df = df.drop_duplicates()
+
+    # Normalizar la columna 'Rating'
     df['Rating'] = df['Rating'].apply(lambda x: x.split()[0] if isinstance(x, str) else x)
-    df.to_csv("Dataset_after_all.csv", index=False)
-    print("Columna 'Rating' normalizada y guardada como 'Dataset_after_all.csv'.")
 
-# Función para normalizar la columna 'Opinion Count'
-def normalize_review_count_column(file_name='Dataset_after_all.csv'):
-    df = pd.read_csv(file_name)
+    # Normalizar la columna 'Opinion Count'
     df['Opinion Count'] = df['Opinion Count'].apply(lambda x: x.split()[0] if pd.notna(x) else x)
+
+    # Aplicar la purga a la columna 'Review Distribution'
+    df[['5_estrellas', '4_estrellas', '3_estrellas', '2_estrellas', '1_estrella']] = df['Review Distribution'].apply(purgar_review_distribution)
+
+    # Convertir los porcentajes en números absolutos en función de 'Total Opinions'
+    df['Total Opinions'] = df['Total Opinions'].astype(int)  # Asegurarnos de que 'Total Opinions' es entero
+    df['5_estrellas'] = (df['5_estrellas'] * df['Total Opinions']).round().astype(int)
+    df['4_estrellas'] = (df['4_estrellas'] * df['Total Opinions']).round().astype(int)
+    df['3_estrellas'] = (df['3_estrellas'] * df['Total Opinions']).round().astype(int)
+    df['2_estrellas'] = (df['2_estrellas'] * df['Total Opinions']).round().astype(int)
+    df['1_estrella'] = (df['1_estrella'] * df['Total Opinions']).round().astype(int)
+
+    # Eliminar la columna "Review Distribution"
+    df.drop(columns=['Review Distribution'], inplace=True)
+
+    # Guardar el dataset final en el mismo archivo
     df.to_csv(file_name, index=False)
-    print("Columna 'Opinion Count' normalizada.")
+    print(f"El dataset ha sido limpiado, normalizado, y guardado como '{file_name}'.")
+
+# Función para purgar el campo "Review Distribution" y convertirlo en variables separadas
+def purgar_review_distribution(review_dist):
+    # Quitar caracteres no deseados como '\xa0' y cualquier espacio extra
+    review_dist = review_dist.replace('\xa0', '').replace('"', '').strip()
+
+    # Convertir el string a un diccionario
+    review_dict = ast.literal_eval(review_dist)
+
+    # Función para convertir porcentajes a valores decimales
+    def convertir_a_float(porcentaje):
+        # Si el valor es '<1%' lo convertimos a 0.01
+        if '<' in porcentaje:
+            return 0.01
+        # De lo contrario, eliminamos el símbolo '%' y convertimos a float
+        return float(porcentaje.replace('%', '')) / 100
+
+    # Crear nuevas columnas basadas en el diccionario
+    estrellas_5 = convertir_a_float(review_dict['5 estrellas'])
+    estrellas_4 = convertir_a_float(review_dict['4 estrellas'])
+    estrellas_3 = convertir_a_float(review_dict['3 estrellas'])
+    estrellas_2 = convertir_a_float(review_dict['2 estrellas'])
+    estrellas_1 = convertir_a_float(review_dict['1 estrella'])
+
+    return pd.Series([estrellas_5, estrellas_4, estrellas_3, estrellas_2, estrellas_1])
+
+# Función para dividir la lista en lotes de tamaño especificado
+def chunk_list(data, chunk_size):
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
 
 # Función para extraer los datos de las reseñas en paralelo
 def extract_tour_reviews(tour_urls):
@@ -155,11 +191,6 @@ def extract_tour_reviews(tour_urls):
     session.close()
     return reviews_data
 
-# Función para dividir la lista en lotes de tamaño especificado
-def chunk_list(data, chunk_size):
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
 # Función principal
 def main():
     # Cargar los enlaces desde el archivo JSON
@@ -175,7 +206,7 @@ def main():
         print(f"Procesando lote {i + 1} de {len(batches)}...")
         reviews_data = extract_tour_reviews(batch)
 
-        # Guardar los datos en CSV acumulando los resultados
+        # Guardar los datos en un solo archivo CSV
         save_to_csv(reviews_data, 'final_tour_reviews.csv')
 
         # Esperar antes del siguiente lote
@@ -183,11 +214,8 @@ def main():
             print("Esperando 4 minutos antes de procesar el siguiente lote...")
             time.sleep(240)
 
-    # Proceso de limpieza final
-    remove_missing_data('final_tour_reviews.csv')
-    remove_duplicates('Without_Missing_Dataset.csv')
-    normalize_rating_column('Without_Duplicates_Dataset.csv')
-    normalize_review_count_column('Dataset_after_all.csv')
+    # Proceso de limpieza y normalización final
+    clean_and_normalize('final_tour_reviews.csv')
 
 if __name__ == "__main__":
     main()
